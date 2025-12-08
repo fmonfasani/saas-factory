@@ -1,7 +1,14 @@
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { billingApi } from '@/lib/api';
+
 export default function Pricing() {
+  const router = useRouter();
+  
   const plans = [
     {
-      name: 'Starter',
+      name: 'Free',
       price: '$0',
       period: 'forever',
       description: 'Perfect for trying out SaaS Factory',
@@ -14,9 +21,10 @@ export default function Pricing() {
       ],
       cta: 'Get Started',
       highlighted: false,
+      planType: null,
     },
     {
-      name: 'Professional',
+      name: 'Pro',
       price: '$29',
       period: 'per month',
       description: 'For serious entrepreneurs',
@@ -31,6 +39,7 @@ export default function Pricing() {
       ],
       cta: 'Start Free Trial',
       highlighted: true,
+      planType: 'pro',
     },
     {
       name: 'Enterprise',
@@ -38,7 +47,7 @@ export default function Pricing() {
       period: 'per month',
       description: 'For teams and agencies',
       features: [
-        'Everything in Professional',
+        'Everything in Pro',
         'Team collaboration',
         'White-label solution',
         'API access',
@@ -48,8 +57,39 @@ export default function Pricing() {
       ],
       cta: 'Contact Sales',
       highlighted: false,
+      planType: 'enterprise',
     },
   ];
+
+  const handlePlanSelect = async (planType: 'pro' | 'enterprise' | null) => {
+    if (!planType) {
+      // Free plan - redirect to signup or dashboard
+      router.push('/signup');
+      return;
+    }
+
+    try {
+      // For Enterprise plan, redirect to contact sales
+      if (planType === 'enterprise') {
+        // In a real app, this might open a contact form or redirect to a sales page
+        alert('Redirecting to contact sales...');
+        return;
+      }
+
+      // For Pro plan, create checkout session
+      const { url } = await billingApi.createCheckoutSession(planType);
+      
+      // Redirect to Stripe checkout
+      if (url) {
+        window.location.href = url;
+      } else {
+        throw new Error('Failed to create checkout session');
+      }
+    } catch (error) {
+      console.error('Error selecting plan:', error);
+      alert('Failed to process your request. Please try again.');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 py-20">
@@ -93,6 +133,7 @@ export default function Pricing() {
                 </div>
 
                 <button
+                  onClick={() => handlePlanSelect(plan.planType)}
                   className={`w-full py-3 rounded-lg font-semibold transition-colors mb-8 ${
                     plan.highlighted
                       ? 'bg-primary text-white hover:bg-blue-700'

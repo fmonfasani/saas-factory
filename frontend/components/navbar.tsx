@@ -31,10 +31,16 @@ export default function Navbar() {
               Dashboard
             </Link>
             <Link 
-              href="/dashboard" 
+              href="/signin" 
+              className="text-gray-700 hover:text-primary transition-colors"
+            >
+              Sign In
+            </Link>
+            <Link 
+              href="/signup" 
               className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
             >
-              Get Started
+              Sign Up
             </Link>
           </div>
 

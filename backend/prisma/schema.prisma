@@ -1,0 +1,182 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String?
+  
+  firstName String
+  lastName  String
+  avatar    String?
+  
+  emailVerified             Boolean   @default(false)
+  emailVerificationToken    String?   @unique
+  emailVerificationExpires  DateTime?
+  
+  passwordResetToken   String?   @unique
+  passwordResetExpires DateTime?
+  
+  googleId       String?
+  googleEmail    String?
+  googleAvatar   String?
+  
+  githubId       String?
+  githubUsername String?
+  githubAvatar   String?
+  
+  lastLogin      DateTime?
+  loginAttempts  Int       @default(0)
+  lockUntil      DateTime?
+  
+  isActive Boolean  @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  sessions Session[]
+  memberships Membership[]
+  
+  @@index([email])
+  @@index([googleId])
+  @@index([githubId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  refreshToken String   @unique
+  
+  userAgent String?
+  ip        String?
+  device    String?
+  browser   String?
+  os        String?
+  
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([refreshToken])
+}
+
+model Organization {
+  id          String    @id @default(uuid())
+  name        String
+  slug        String    @unique
+  logo        String?
+  plan        String    @default("free")
+  isActive    Boolean   @default(true)
+
+  members     Membership[]
+  projects    Project[]
+  invitations Invitation[]
+  subscriptions Subscription[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([slug])
+}
+
+model Membership {
+  id             String   @id @default(uuid())
+  userId         String
+  organizationId String
+  role           String   // owner/admin/member
+  joinedAt       DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+}
+
+model Project {
+  id            String   @id @default(uuid())
+  organizationId String
+  name          String
+  description   String?
+  status        String   @default("active")
+
+  // SaaS fields
+  idea        String?
+  market      String?
+  coreFeatures String?
+  techStack   String?
+  mvpPlan     String?
+  gtmPlan     String?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+model Invitation {
+  id             String   @id @default(uuid())
+  organizationId String
+  email          String
+  role           String   // owner/admin/member
+  token          String   @unique
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([token])
+  @@index([organizationId])
+}
+
+model Subscription {
+  id             String    @id @default(uuid())
+  organizationId String
+  planType       String    // free, basic, premium, enterprise
+  status         String    // active, inactive, canceled, past_due
+  startDate      DateTime
+  endDate        DateTime?
+  cancelAtPeriodEnd Boolean @default(false)
+  stripeSubscriptionId String? @unique
+  
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoices Invoice[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([organizationId])
+  @@index([stripeSubscriptionId])
+}
+
+model Invoice {
+  id              String   @id @default(uuid())
+  subscriptionId  String
+  amount          Float
+  currency        String   @default("usd")
+  status          String   // paid, unpaid, pending, failed
+  invoiceDate     DateTime
+  dueDate         DateTime
+  stripeInvoiceId String?  @unique
+  
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([subscriptionId])
+  @@index([stripeInvoiceId])
+}
