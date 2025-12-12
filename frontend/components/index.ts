@@ -8,3 +8,6 @@ export * from './AgentActivityFeed';
 export * from './LandingPreview';
 export * from './BillingSection';
 export * from './PricingCard';
+export * from './SaveProjectModal';
+export * from './BlueprintCard';
+export * from './VisualEditor';

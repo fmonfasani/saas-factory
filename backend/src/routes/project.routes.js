@@ -25,4 +25,7 @@ router.put('/:id', authenticateJWT, requireOrgAccess, updateProjectRules, valida
 // Delete project
 router.delete('/:id', authenticateJWT, requireOrgAccess, projectIdRules, validate, projectController.deleteProject);
 
+// Get project HTML preview
+router.get('/:id/preview', authenticateJWT, requireOrgAccess, projectIdRules, validate, projectController.getProjectPreview);
+
 module.exports = router;

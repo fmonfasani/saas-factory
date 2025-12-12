@@ -11,10 +11,19 @@ export interface SaaSData {
 export interface GeneratedSaaSData {
   name: string;
   tagline: string;
+  description: string;
   market: string;
+  targetAudience: string;
+  problemStatement: string;
+  solution: string;
   features: string[];
+  mvpFeatures: string[];
+  usp: string;
+  pricingModel: string;
   cta: string;
-  promptAnalysis?: string;
+  // Optional fields that might be added later or used in UI
+  idea?: string;
+  generatedSchema?: string;
 }
 
 export interface PricingPlan {

@@ -1,0 +1,17 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "iopeer"
+version = "0.0.2"
+description = "iopeer - Minimal SaaS generator using Planner → Coder → Tester → Fixer"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["click"]
+
+[project.scripts]
+iopeer = "iopeer.cli:cli"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/iopeer"]

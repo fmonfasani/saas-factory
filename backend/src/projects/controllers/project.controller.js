@@ -10,7 +10,7 @@ const AppError = require('../../utils/AppError');
 async function createProject(req, res, next) {
   try {
     const { orgId: organizationId } = req.params;
-    const { name, description, idea, market, coreFeatures, techStack, mvpPlan, gtmPlan } = req.body;
+    const { name, description, idea, market, coreFeatures, techStack, mvpPlan, gtmPlan, generatedHtml, saasData } = req.body;
 
     // Create project
     const project = await projectService.createProject({
@@ -22,7 +22,10 @@ async function createProject(req, res, next) {
       coreFeatures,
       techStack,
       mvpPlan,
-      gtmPlan
+      gtmPlan,
+      generatedHtml,
+      saasData,
+      generatedAt: generatedHtml ? new Date() : null
     });
 
     res.status(201).json({
@@ -86,6 +89,41 @@ async function getProject(req, res, next) {
 }
 
 /**
+ * Get project HTML preview
+ * @param {import('express').Request} req 
+ * @param {import('express').Response} res 
+ * @param {import('express').NextFunction} next 
+ */
+async function getProjectPreview(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { orgId: organizationId } = req.params;
+
+    const project = await projectService.getProject(id, organizationId);
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    if (!project.generatedHtml) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project preview not available'
+      });
+    }
+
+    // Set content type to HTML and send the generated HTML
+    res.set('Content-Type', 'text/html');
+    res.send(project.generatedHtml);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
  * Update project
  * @param {import('express').Request} req 
  * @param {import('express').Response} res 
@@ -95,7 +133,7 @@ async function updateProject(req, res, next) {
   try {
     const { id } = req.params;
     const { orgId: organizationId } = req.params;
-    const { name, description, idea, market, coreFeatures, techStack, mvpPlan, gtmPlan, status } = req.body;
+    const { name, description, idea, market, coreFeatures, techStack, mvpPlan, gtmPlan, status, generatedHtml, saasData } = req.body;
 
     // Prepare update data
     const updateData = {};
@@ -108,6 +146,9 @@ async function updateProject(req, res, next) {
     if (mvpPlan !== undefined) updateData.mvpPlan = mvpPlan;
     if (gtmPlan !== undefined) updateData.gtmPlan = gtmPlan;
     if (status !== undefined) updateData.status = status;
+    if (generatedHtml !== undefined) updateData.generatedHtml = generatedHtml;
+    if (saasData !== undefined) updateData.saasData = saasData;
+    if (generatedHtml !== undefined) updateData.generatedAt = generatedHtml ? new Date() : null;
 
     // Update project
     const project = await projectService.updateProject(id, organizationId, updateData);
@@ -161,6 +202,7 @@ module.exports = {
   createProject,
   listProjects,
   getProject,
+  getProjectPreview,
   updateProject,
   deleteProject
 };

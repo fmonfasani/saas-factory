@@ -41,7 +41,15 @@ const createProjectRules = [
     .optional()
     .trim()
     .isLength({ max: 1000 })
-    .withMessage('Go-to-market plan must be less than 1000 characters')
+    .withMessage('Go-to-market plan must be less than 1000 characters'),
+  body('generatedHtml')
+    .optional()
+    .isString()
+    .withMessage('Generated HTML must be a string'),
+  body('saasData')
+    .optional()
+    .isObject()
+    .withMessage('SaaS data must be an object')
 ];
 
 // Validation rules for updating a project
@@ -90,7 +98,15 @@ const updateProjectRules = [
   body('status')
     .optional()
     .isIn(['draft', 'active', 'archived'])
-    .withMessage('Status must be one of: draft, active, archived')
+    .withMessage('Status must be one of: draft, active, archived'),
+  body('generatedHtml')
+    .optional()
+    .isString()
+    .withMessage('Generated HTML must be a string'),
+  body('saasData')
+    .optional()
+    .isObject()
+    .withMessage('SaaS data must be an object')
 ];
 
 // Validation rules for getting/deleting a project

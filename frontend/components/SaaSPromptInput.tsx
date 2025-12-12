@@ -1,18 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface SaaSPromptInputProps {
   onSubmit: (prompt: string) => void;
+  initialPrompt?: string;
+  isLoading?: boolean;
 }
 
-export function SaaSPromptInput({ onSubmit }: SaaSPromptInputProps) {
-  const [prompt, setPrompt] = useState('');
+export function SaaSPromptInput({ onSubmit, initialPrompt = '', isLoading: externalLoading }: SaaSPromptInputProps) {
+  const [prompt, setPrompt] = useState(initialPrompt);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Update prompt when initialPrompt changes (from blueprint selection)
+  useEffect(() => {
+    if (initialPrompt) {
+      setPrompt(initialPrompt);
+    }
+  }, [initialPrompt]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (prompt.trim() && !isLoading) {
+    if (prompt.trim() && !isLoading && !externalLoading) {
       setIsLoading(true);
       onSubmit(prompt.trim());
     }
@@ -35,7 +44,7 @@ export function SaaSPromptInput({ onSubmit }: SaaSPromptInputProps) {
       <p className="text-gray-600 mb-6">
         Describe your SaaS idea and we'll generate a landing page in real-time
       </p>
-      
+
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
           <label htmlFor="saas-prompt" className="block text-sm font-medium text-gray-700 mb-2">
@@ -51,7 +60,7 @@ export function SaaSPromptInput({ onSubmit }: SaaSPromptInputProps) {
             disabled={isLoading}
           />
         </div>
-        
+
         <div className="mb-6">
           <p className="text-sm font-medium text-gray-700 mb-2">Inspiration Examples:</p>
           <div className="flex flex-wrap gap-2">
@@ -68,14 +77,13 @@ export function SaaSPromptInput({ onSubmit }: SaaSPromptInputProps) {
             ))}
           </div>
         </div>
-        
+
         <button
           type="submit"
-          className={`w-full flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white ${
-            isLoading 
-              ? 'bg-blue-400 cursor-not-allowed' 
+          className={`w-full flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white ${isLoading
+              ? 'bg-blue-400 cursor-not-allowed'
               : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
-          }`}
+            }`}
           disabled={!prompt.trim() || isLoading}
         >
           {isLoading ? (

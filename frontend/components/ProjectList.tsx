@@ -13,11 +13,25 @@ export function ProjectList() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [previewProject, setPreviewProject] = useState<Project | null>(null);
 
   useEffect(() => {
     if (currentOrganization) {
       loadProjects();
     }
+    
+    // Listen for refresh events from the dashboard
+    const handleRefresh = () => {
+      if (currentOrganization) {
+        loadProjects();
+      }
+    };
+    
+    window.addEventListener('refreshProjects', handleRefresh);
+    
+    return () => {
+      window.removeEventListener('refreshProjects', handleRefresh);
+    };
   }, [currentOrganization]);
 
   const loadProjects = async () => {
@@ -39,6 +53,14 @@ export function ProjectList() {
 
   const handleProjectCreated = (newProject: Project) => {
     setProjects([...projects, newProject]);
+  };
+
+  const handlePreview = (project: Project) => {
+    setPreviewProject(project);
+  };
+
+  const closePreview = () => {
+    setPreviewProject(null);
   };
 
   if (!currentOrganization) {
@@ -109,7 +131,13 @@ export function ProjectList() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {projects.map((project) => (
-            <ProjectCard key={project.id} project={project} />
+            <ProjectCard 
+              key={project.id} 
+              project={project} 
+              onViewDetails={() => {}} // TODO: Implement view details functionality
+              onPreview={project.generatedHtml ? handlePreview : undefined}
+              onEdit={() => {}} // TODO: Implement edit functionality
+            />
           ))}
         </div>
       )}
@@ -119,6 +147,29 @@ export function ProjectList() {
         onClose={() => setIsModalOpen(false)}
         onProjectCreated={handleProjectCreated}
       />
+      
+      {/* Preview Modal */}
+      {previewProject && previewProject.generatedHtml && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex flex-col">
+          <div className="flex justify-between items-center p-4 bg-white">
+            <h2 className="text-xl font-bold text-gray-900">Project Preview: {previewProject.name}</h2>
+            <button
+              onClick={closePreview}
+              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded"
+            >
+              Close
+            </button>
+          </div>
+          <div className="flex-1 overflow-hidden">
+            <iframe
+              srcDoc={previewProject.generatedHtml}
+              className="w-full h-full border-0"
+              title="Project Preview"
+              sandbox="allow-scripts"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -12,6 +12,7 @@ const organizationRoutes = require('./routes/organization.routes');
 const projectRoutes = require('./routes/project.routes');
 const generateRoutes = require('./routes/generate.routes');
 const billingRoutes = require('./routes/billing.routes');
+const blueprintRoutes = require('./routes/blueprint.routes');
 
 require('./auth/strategies/jwt.strategy');
 require('./auth/strategies/google.strategy');
@@ -55,17 +56,24 @@ app.get(`${apiPrefix}`, (req, res) => {
       organizations: `${apiPrefix}/organizations`,
       generate: `${apiPrefix}/generate`,
       billing: `${apiPrefix}/billing`,
+      blueprints: `${apiPrefix}/blueprints`,
       health: '/health'
     }
   });
 });
+
+// IMPORTANT: Stripe Webhook needs RAW body
+app.use(`${apiPrefix}/billing/webhook`, express.raw({ type: 'application/json' }));
 
 app.use(`${apiPrefix}/auth`, authRoutes);
 app.use(`${apiPrefix}/users`, userRoutes);
 app.use(`${apiPrefix}/organizations`, organizationRoutes);
 app.use(`${apiPrefix}/organizations/:orgId/projects`, projectRoutes);
 app.use(`${apiPrefix}/generate`, generateRoutes);
-app.use(`${apiPrefix}/billing`, billingRoutes);
+app.use(`${apiPrefix}/billing`, require('./routes/billing.routes')); // Stripe routes
+app.use(`${apiPrefix}/billing/mp`, require('./routes/mercadopago.routes')); // Mercado Pago routes
+app.use(`${apiPrefix}/blueprints`, blueprintRoutes);
+app.use(`${apiPrefix}/projects/:projectId/data`, require('./routes/dynamic.routes'));
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });

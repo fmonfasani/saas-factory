@@ -1,233 +1,133 @@
 'use client';
 
+import React from 'react';
+import { useAuth, useOrganization } from '@/contexts';
 import { useRouter } from 'next/navigation';
 import { billingApi } from '@/lib/api';
 
-export default function Pricing() {
+export default function PricingPage() {
+  const { user } = useAuth();
+  const { currentOrganization } = useOrganization();
   const router = useRouter();
-  
-  const plans = [
-    {
-      name: 'Free',
-      price: '$0',
-      period: 'forever',
-      description: 'Perfect for trying out SaaS Factory',
-      features: [
-        'Up to 3 SaaS projects',
-        '5 landing page generations/month',
-        'Google Sheets integration',
-        'Basic templates',
-        'Community support',
-      ],
-      cta: 'Get Started',
-      highlighted: false,
-      planType: null,
-    },
-    {
-      name: 'Pro',
-      price: '$29',
-      period: 'per month',
-      description: 'For serious entrepreneurs',
-      features: [
-        'Unlimited SaaS projects',
-        'Unlimited landing page generations',
-        'Google Sheets integration',
-        'Premium templates',
-        'Custom branding',
-        'Priority support',
-        'Analytics dashboard',
-      ],
-      cta: 'Start Free Trial',
-      highlighted: true,
-      planType: 'pro',
-    },
-    {
-      name: 'Enterprise',
-      price: '$99',
-      period: 'per month',
-      description: 'For teams and agencies',
-      features: [
-        'Everything in Pro',
-        'Team collaboration',
-        'White-label solution',
-        'API access',
-        'Custom integrations',
-        'Dedicated account manager',
-        'SLA guarantee',
-      ],
-      cta: 'Contact Sales',
-      highlighted: false,
-      planType: 'enterprise',
-    },
-  ];
 
-  const handlePlanSelect = async (planType: 'pro' | 'enterprise' | null) => {
-    if (!planType) {
-      // Free plan - redirect to signup or dashboard
-      router.push('/signup');
-      return;
-    }
-
+  const handleUpgrade = async () => {
     try {
-      // For Enterprise plan, redirect to contact sales
-      if (planType === 'enterprise') {
-        // In a real app, this might open a contact form or redirect to a sales page
-        alert('Redirecting to contact sales...');
-        return;
-      }
+      // Use billingApi which handles Auth headers correctly and defaults priceId
+      const session = await billingApi.createCheckoutSession('');
 
-      // For Pro plan, create checkout session
-      const { url } = await billingApi.createCheckoutSession(planType);
-      
-      // Redirect to Stripe checkout
-      if (url) {
-        window.location.href = url;
+      if (session.url) {
+        window.location.href = session.url;
       } else {
-        throw new Error('Failed to create checkout session');
+        alert('Failed to start checkout');
       }
     } catch (error) {
-      console.error('Error selecting plan:', error);
-      alert('Failed to process your request. Please try again.');
+      console.error('Upgrade error:', error);
+      alert('Error initiating upgrade. Please try logging in again.');
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
-          <h1 className="text-5xl font-bold text-gray-900 mb-4">
-            Simple, Transparent Pricing
-          </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Choose the perfect plan for your needs. All plans include our core features.
-          </p>
-        </div>
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-20 px-4">
+      <div className="text-center max-w-3xl mb-12">
+        <h1 className="text-4xl font-extrabold text-gray-900 mb-4">
+          Simple, Transparent Pricing
+        </h1>
+        <p className="text-xl text-gray-600">
+          Everything you need to build and deploy your SaaS.
+        </p>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-          {plans.map((plan, index) => (
-            <div
-              key={index}
-              className={`bg-white rounded-xl shadow-lg overflow-hidden ${
-                plan.highlighted
-                  ? 'ring-4 ring-primary transform scale-105'
-                  : ''
-              }`}
-            >
-              {plan.highlighted && (
-                <div className="bg-primary text-white text-center py-2 text-sm font-semibold">
-                  MOST POPULAR
-                </div>
-              )}
-              
-              <div className="p-8">
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                  {plan.name}
-                </h3>
-                <p className="text-gray-600 mb-6">{plan.description}</p>
-                
-                <div className="mb-6">
-                  <span className="text-5xl font-bold text-gray-900">
-                    {plan.price}
-                  </span>
-                  <span className="text-gray-600 ml-2">/ {plan.period}</span>
-                </div>
-
-                <button
-                  onClick={() => handlePlanSelect(plan.planType)}
-                  className={`w-full py-3 rounded-lg font-semibold transition-colors mb-8 ${
-                    plan.highlighted
-                      ? 'bg-primary text-white hover:bg-blue-700'
-                      : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-                  }`}
-                >
-                  {plan.cta}
-                </button>
-
-                <ul className="space-y-4">
-                  {plan.features.map((feature, featureIndex) => (
-                    <li key={featureIndex} className="flex items-start">
-                      <svg
-                        className="w-6 h-6 text-green-500 mr-3 flex-shrink-0"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                      <span className="text-gray-700">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="bg-white rounded-xl shadow-lg p-12 text-center">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            All Plans Include
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-8">
-            <div>
-              <div className="text-primary text-3xl mb-2">🔒</div>
-              <h4 className="font-semibold mb-1">Secure & Reliable</h4>
-              <p className="text-gray-600 text-sm">99.9% uptime guarantee</p>
-            </div>
-            <div>
-              <div className="text-primary text-3xl mb-2">🚀</div>
-              <h4 className="font-semibold mb-1">Fast Performance</h4>
-              <p className="text-gray-600 text-sm">Lightning-fast generation</p>
-            </div>
-            <div>
-              <div className="text-primary text-3xl mb-2">📱</div>
-              <h4 className="font-semibold mb-1">Mobile Responsive</h4>
-              <p className="text-gray-600 text-sm">Works on all devices</p>
-            </div>
-            <div>
-              <div className="text-primary text-3xl mb-2">🔄</div>
-              <h4 className="font-semibold mb-1">Regular Updates</h4>
-              <p className="text-gray-600 text-sm">New features monthly</p>
-            </div>
+      <div className="grid md:grid-cols-2 gap-8 max-w-5xl w-full">
+        {/* Free Plan */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 flex flex-col">
+          <h3 className="text-2xl font-bold text-gray-900 mb-2">Hobby</h3>
+          <p className="text-gray-500 mb-6">For tinkering and testing ideas.</p>
+          <div className="text-4xl font-extrabold text-gray-900 mb-6">
+            $0 <span className="text-base font-normal text-gray-500">/mo</span>
           </div>
+          <ul className="space-y-4 mb-8 flex-1">
+            <li className="flex items-center text-gray-600">
+              <svg className="w-5 h-5 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+              Unlimited AI Generations
+            </li>
+            <li className="flex items-center text-gray-600">
+              <svg className="w-5 h-5 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+              Landing Page Preview
+            </li>
+            <li className="flex items-center text-gray-600">
+              <svg className="w-5 h-5 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+              Database Schema Design
+            </li>
+          </ul>
+          <button
+            disabled
+            className="w-full py-3 px-6 rounded-lg bg-gray-100 text-gray-500 font-semibold cursor-not-allowed"
+          >
+            Current Plan
+          </button>
         </div>
 
-        <div className="mt-16 text-center">
-          <h3 className="text-2xl font-bold text-gray-900 mb-4">
-            Frequently Asked Questions
-          </h3>
-          <div className="max-w-3xl mx-auto text-left space-y-4">
-            <details className="bg-white rounded-lg p-6 shadow-md">
-              <summary className="font-semibold text-lg cursor-pointer">
-                Can I switch plans later?
-              </summary>
-              <p className="mt-3 text-gray-600">
-                Yes! You can upgrade or downgrade your plan at any time. Changes take effect immediately.
-              </p>
-            </details>
-            
-            <details className="bg-white rounded-lg p-6 shadow-md">
-              <summary className="font-semibold text-lg cursor-pointer">
-                What payment methods do you accept?
-              </summary>
-              <p className="mt-3 text-gray-600">
-                We accept all major credit cards, PayPal, and bank transfers for enterprise plans.
-              </p>
-            </details>
-            
-            <details className="bg-white rounded-lg p-6 shadow-md">
-              <summary className="font-semibold text-lg cursor-pointer">
-                Is there a free trial?
-              </summary>
-              <p className="mt-3 text-gray-600">
-                Yes! All paid plans include a 14-day free trial. No credit card required.
-              </p>
-            </details>
+        {/* Pro Plan */}
+        <div className="bg-gray-900 rounded-2xl shadow-xl border border-gray-800 p-8 flex flex-col relative overflow-hidden">
+          <div className="absolute top-0 right-0 bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-bl-lg">
+            POPULAR
           </div>
+          <h3 className="text-2xl font-bold text-white mb-2">Pro</h3>
+          <p className="text-gray-400 mb-6">For serious builders shipping products.</p>
+          <div className="text-4xl font-extrabold text-white mb-6">
+            $29 <span className="text-base font-normal text-gray-400">/mo</span>
+          </div>
+          <ul className="space-y-4 mb-8 flex-1">
+            <li className="flex items-center text-gray-300">
+              <svg className="w-5 h-5 text-blue-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+              Everything in Hobby
+            </li>
+            <li className="flex items-center text-gray-300">
+              <svg className="w-5 h-5 text-blue-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+              Export Code (ZIP)
+            </li>
+            <li className="flex items-center text-gray-300">
+              <svg className="w-5 h-5 text-blue-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+              Real Database Hosting
+            </li>
+            <li className="flex items-center text-gray-300">
+              <svg className="w-5 h-5 text-blue-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+              Deploy to Custom Domain
+            </li>
+          </ul>
+          <button
+            onClick={handleUpgrade}
+            className="w-full py-3 px-6 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors shadow-lg hover:shadow-blue-500/25 mb-4"
+          >
+            Upgrade with Stripe
+          </button>
+
+          <button
+            onClick={async () => {
+              try {
+                // Call API to create subscription
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${process.env.NEXT_PUBLIC_API_PREFIX}/billing/mp/subscribe`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+                  }
+                });
+                const data = await res.json();
+                if (data.init_point) {
+                  window.location.href = data.init_point;
+                } else {
+                  alert('Error creating MP subscription');
+                }
+              } catch (e) {
+                console.error(e);
+                alert('Connection error');
+              }
+            }}
+            className="w-full py-3 px-6 rounded-lg bg-sky-500 hover:bg-sky-600 text-white font-semibold transition-colors shadow-lg"
+          >
+            Suscribirse con Mercado Pago
+          </button>
         </div>
       </div>
     </div>

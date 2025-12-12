@@ -15,6 +15,9 @@ const prisma = new PrismaClient();
  * @param {string[]} [params.techStack] - Technology stack
  * @param {string} [params.mvpPlan] - MVP plan
  * @param {string} [params.gtmPlan] - Go-to-market plan
+ * @param {string} [params.generatedHtml] - Generated HTML for the landing page
+ * @param {Object} [params.saasData] - Structured SaaS data
+ * @param {Date} [params.generatedAt] - Timestamp when HTML was generated
  * @returns {Promise<Object>} Created project
  */
 async function createProject(params) {
@@ -27,7 +30,10 @@ async function createProject(params) {
     coreFeatures, 
     techStack, 
     mvpPlan, 
-    gtmPlan 
+    gtmPlan,
+    generatedHtml,
+    saasData,
+    generatedAt
   } = params;
 
   return await prisma.project.create({
@@ -40,7 +46,10 @@ async function createProject(params) {
       coreFeatures,
       techStack,
       mvpPlan,
-      gtmPlan
+      gtmPlan,
+      generatedHtml,
+      saasData,
+      generatedAt
     }
   });
 }

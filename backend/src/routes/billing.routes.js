@@ -1,39 +1,69 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateJWT } = require('../auth/middleware/auth.middleware');
-const {
-  createCheckoutSession,
-  createPortalSession,
-  getSubscription,
-  handleWebhook
-} = require('../controllers/billing.controller');
+const stripeService = require('../services/stripe.service');
+
+const passport = require('passport');
+
+// Middleware for authentication check
+const ensureAuthenticated = passport.authenticate('jwt', { session: false });
 
 /**
- * @route   POST /billing/checkout
- * @desc    Create a checkout session for subscription
- * @access  Private
+ * POST /api/billing/checkout
+ * Create Checkout Session
  */
-router.post('/checkout', authenticateJWT, createCheckoutSession);
+router.post('/checkout', ensureAuthenticated, async (req, res) => {
+  try {
+    const { priceId } = req.body;
+    // Fallback to env variable if not passed
+    const finalPriceId = priceId || process.env.STRIPE_PRICE_ID;
+
+    if (!finalPriceId) {
+      return res.status(500).json({ error: 'Price ID not configured' });
+    }
+
+    const sessionUrl = await stripeService.createCheckoutSession(
+      req.user.organizationId,
+      req.user.id,
+      finalPriceId
+    );
+
+    res.json({ url: sessionUrl });
+  } catch (error) {
+    console.error('Checkout error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 /**
- * @route   POST /billing/portal
- * @desc    Create a billing portal session
- * @access  Private
+ * POST /api/billing/portal
+ * Manage Subscription
  */
-router.post('/portal', authenticateJWT, createPortalSession);
+router.post('/portal', ensureAuthenticated, async (req, res) => {
+  try {
+    const sessionUrl = await stripeService.createPortalSession(req.user.organizationId);
+    res.json({ url: sessionUrl });
+  } catch (error) {
+    console.error('Portal error:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
 
 /**
- * @route   GET /billing/subscription
- * @desc    Get user's subscription status
- * @access  Private
+ * POST /api/billing/webhook
+ * Stripe Webhook
+ * NOTE: This route expects express.raw() middleware to be applied in app.js or locally
+ * Here we handle the logic assuming req.body is the raw buffer if configured, or handled upstream
  */
-router.get('/subscription', authenticateJWT, getSubscription);
+router.post('/webhook', async (req, res) => {
+  const signature = req.headers['stripe-signature'];
 
-/**
- * @route   POST /billing/webhook
- * @desc    Handle Stripe webhook events
- * @access  Public
- */
-router.post('/webhook', express.raw({ type: 'application/json' }), handleWebhook);
+  try {
+    await stripeService.handleWebhook(signature, req.body);
+    res.json({ received: true });
+  } catch (error) {
+    console.error('Webhook Error:', error.message);
+    res.status(400).send(`Webhook Error: ${error.message}`);
+  }
+});
 
 module.exports = router;

@@ -5,9 +5,10 @@ import { useState } from 'react';
 interface LandingPreviewProps {
   html: string;
   isLoading: boolean;
+  onSaveProject?: () => void;
 }
 
-export function LandingPreview({ html, isLoading }: LandingPreviewProps) {
+export function LandingPreview({ html, isLoading, onSaveProject }: LandingPreviewProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const handleViewFullscreen = () => {
@@ -54,6 +55,15 @@ export function LandingPreview({ html, isLoading }: LandingPreviewProps) {
         <div className="p-4 border-b flex justify-between items-center">
           <h2 className="text-xl font-bold text-gray-900">Landing Page Preview</h2>
           <div className="flex space-x-2">
+            {onSaveProject && (
+              <button
+                onClick={onSaveProject}
+                disabled={!html}
+                className="px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Save Project
+              </button>
+            )}
             <button
               onClick={handleDownload}
               disabled={!html}

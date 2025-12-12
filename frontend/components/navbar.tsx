@@ -10,34 +10,40 @@ export default function Navbar() {
               SaaS Factory
             </Link>
           </div>
-          
+
           <div className="hidden md:flex items-center space-x-8">
-            <Link 
-              href="/" 
+            <Link
+              href="/"
               className="text-gray-700 hover:text-primary transition-colors"
             >
               Home
             </Link>
-            <Link 
-              href="/pricing" 
+            <Link
+              href="/pricing"
               className="text-gray-700 hover:text-primary transition-colors"
             >
               Pricing
             </Link>
-            <Link 
-              href="/dashboard" 
+            <Link
+              href="/blueprints"
+              className="text-gray-700 hover:text-primary transition-colors"
+            >
+              Blueprints
+            </Link>
+            <Link
+              href="/dashboard"
               className="text-gray-700 hover:text-primary transition-colors"
             >
               Dashboard
             </Link>
-            <Link 
-              href="/signin" 
+            <Link
+              href="/signin"
               className="text-gray-700 hover:text-primary transition-colors"
             >
               Sign In
             </Link>
-            <Link 
-              href="/signup" 
+            <Link
+              href="/signup"
               className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
             >
               Sign Up

@@ -75,6 +75,10 @@ model Organization {
   logo        String?
   plan        String    @default("free")
   isActive    Boolean   @default(true)
+  
+  // Stripe integration fields
+  stripeCustomerId   String?  @unique
+  subscriptionStatus String?  @default("inactive") // inactive, active, past_due, canceled
 
   members     Membership[]
   projects    Project[]
@@ -116,12 +120,74 @@ model Project {
   mvpPlan     String?
   gtmPlan     String?
 
+  // Generated HTML fields
+  generatedHtml    String?  @db.Text
+  generatedAt      DateTime?
+  saasData         Json?
+  
+  // Generated Backend Schema
+  schemaDefinition String?  @db.Text // AI generated Prisma schema (models only)
+
+  // Blueprint relation
+  blueprintId   String?
+  blueprint     Blueprint? @relation(fields: [blueprintId], references: [id])
+
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Dynamic Data (for the generated app's runtime)
+  dynamicRecords DynamicRecord[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([organizationId])
+  @@index([blueprintId])
+}
+
+model DynamicRecord {
+  id        String   @id @default(uuid())
+  projectId String
+  modelName String   // e.g., "Customer", "Product"
+  data      Json     // The actual record data
+  
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([projectId, modelName])
+}
+
+model Blueprint {
+  id            String   @id @default(uuid())
+  slug          String   @unique
+  name          String
+  description   String
+  category      String   // productivity, business, content, ai, marketing
+  icon          String?  // emoji
+  thumbnail     String?
+  
+  // Template content
+  defaultFeatures   Json     // Array of default features
+  suggestedStack    Json?    // Suggested tech stack
+  landingTemplate   String?  @db.Text
+  promptTemplate    String?  @db.Text
+  
+  // Metadata
+  difficulty        String   @default("beginner")
+  estimatedTime     String?
+  popularityScore   Int      @default(0)
+  
+  isActive          Boolean  @default(true)
+  isPremium         Boolean  @default(false)
+  
+  projects          Project[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([category])
+  @@index([isActive])
 }
 
 model Invitation {
@@ -142,6 +208,39 @@ model Invitation {
   @@index([organizationId])
 }
 
+model Payment {
+  id              String   @id @default(uuid())
+  organizationId  String
+  amount          Float
+  currency        String   @default("ars")
+  status          String   // paid, unpaid, pending, failed, refunded
+  mpPaymentId     String?  @unique
+  description     String?
+  metadata        Json?
+  
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([organizationId])
+  @@index([mpPaymentId])
+  @@index([status])
+}
+
+model MPTransactionLog {
+  id             String   @id @default(uuid())
+  type           String   // preference, preapproval, webhook, etc.
+  data           Json
+  userId         String?
+  organizationId String?
+  createdAt      DateTime @default(now())
+  
+  @@index([organizationId])
+  @@index([type])
+  @@index([createdAt])
+}
+
 model Subscription {
   id             String    @id @default(uuid())
   organizationId String
@@ -151,6 +250,8 @@ model Subscription {
   endDate        DateTime?
   cancelAtPeriodEnd Boolean @default(false)
   stripeSubscriptionId String? @unique
+  mpPreapprovalId String? @unique
+  mpPlanId String?
   
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   invoices Invoice[]
@@ -160,6 +261,7 @@ model Subscription {
   
   @@index([organizationId])
   @@index([stripeSubscriptionId])
+  @@index([mpPreapprovalId])
 }
 
 model Invoice {

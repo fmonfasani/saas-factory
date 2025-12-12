@@ -16,14 +16,14 @@ const API_PREFIX = process.env.NEXT_PUBLIC_API_PREFIX || '/api';
 // Helper function to handle API errors
 async function handleApiError(response: Response): Promise<never> {
   let errorMessage = 'An unexpected error occurred';
-  
+
   try {
     const errorData: ErrorResponse = await response.json();
-    
+
     // Handle validation errors
     if (errorData.errors && Array.isArray(errorData.errors)) {
       errorMessage = errorData.errors.map(err => err.msg).join(', ');
-    } 
+    }
     // Handle single error message
     else if (errorData.error) {
       errorMessage = errorData.error;
@@ -32,7 +32,7 @@ async function handleApiError(response: Response): Promise<never> {
     // If response is not JSON, use status text
     errorMessage = response.statusText || errorMessage;
   }
-  
+
   throw new Error(errorMessage);
 }
 
@@ -102,11 +102,11 @@ export const authApi = {
         },
         body: JSON.stringify(data),
       });
-      
+
       if (!response.ok) {
         await handleApiError(response);
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error('Signup error:', error);
@@ -124,18 +124,18 @@ export const authApi = {
         credentials: 'include', // Include cookies for refresh token
         body: JSON.stringify(data),
       });
-      
+
       if (!response.ok) {
         await handleApiError(response);
       }
-      
+
       const responseData = await response.json();
-      
+
       // Store access token in localStorage
       if (responseData.accessToken) {
         localStorage.setItem('accessToken', responseData.accessToken);
       }
-      
+
       return responseData;
     } catch (error) {
       console.error('Signin error:', error);
@@ -149,7 +149,7 @@ export const authApi = {
         method: 'POST',
         credentials: 'include',
       });
-      
+
       // Clear access token from localStorage
       localStorage.removeItem('accessToken');
     } catch (error) {
@@ -166,12 +166,13 @@ export const organizationApi = {
       const response = await fetch(`${API_URL}${API_PREFIX}/organizations`, {
         headers: getAuthHeaders(),
       });
-      
+
       if (!response.ok) {
         await handleApiError(response);
       }
-      
-      return await response.json();
+
+      const data = await response.json();
+      return data.organizations || [];
     } catch (error) {
       console.error('Error fetching organizations:', error);
       throw error;
@@ -185,12 +186,13 @@ export const organizationApi = {
         headers: getAuthHeaders(),
         body: JSON.stringify(data),
       });
-      
+
       if (!response.ok) {
         await handleApiError(response);
       }
-      
-      return await response.json();
+
+      const result = await response.json();
+      return result.organization;
     } catch (error) {
       console.error('Error creating organization:', error);
       throw error;
@@ -202,12 +204,13 @@ export const organizationApi = {
       const response = await fetch(`${API_URL}${API_PREFIX}/organizations/${id}`, {
         headers: getAuthHeaders(),
       });
-      
+
       if (!response.ok) {
         await handleApiError(response);
       }
-      
-      return await response.json();
+
+      const result = await response.json();
+      return result.organization;
     } catch (error) {
       console.error('Error fetching organization:', error);
       throw error;
@@ -222,12 +225,13 @@ export const projectApi = {
       const response = await fetch(`${API_URL}${API_PREFIX}/organizations/${orgId}/projects`, {
         headers: getAuthHeaders(),
       });
-      
+
       if (!response.ok) {
         await handleApiError(response);
       }
-      
-      return await response.json();
+
+      const data = await response.json();
+      return data.projects || [];
     } catch (error) {
       console.error('Error fetching projects:', error);
       throw error;
@@ -241,12 +245,13 @@ export const projectApi = {
         headers: getAuthHeaders(),
         body: JSON.stringify(data),
       });
-      
+
       if (!response.ok) {
         await handleApiError(response);
       }
-      
-      return await response.json();
+
+      const result = await response.json();
+      return result.project;
     } catch (error) {
       console.error('Error creating project:', error);
       throw error;
@@ -301,54 +306,149 @@ export const generateApi = {
 export const billingApi = {
   async createCheckoutSession(priceId: string): Promise<{ url: string }> {
     try {
-      const response = await fetch(`${API_URL}${API_PREFIX}/billing/create-checkout-session`, {
+      const response = await fetch(`${API_URL}${API_PREFIX}/billing/checkout`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ priceId }),
       });
-      
+
       if (!response.ok) {
         await handleApiError(response);
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error('Error creating checkout session:', error);
       throw error;
     }
   },
-  
+
   async createPortalSession(): Promise<{ url: string }> {
     try {
-      const response = await fetch(`${API_URL}${API_PREFIX}/billing/create-portal-session`, {
+      const response = await fetch(`${API_URL}${API_PREFIX}/billing/portal`, {
         method: 'POST',
         headers: getAuthHeaders(),
       });
-      
+
       if (!response.ok) {
         await handleApiError(response);
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error('Error creating portal session:', error);
       throw error;
     }
   },
-  
+
   async getSubscription(): Promise<any> {
     try {
       const response = await fetch(`${API_URL}${API_PREFIX}/billing/subscription`, {
         headers: getAuthHeaders(),
       });
-      
+
       if (!response.ok) {
         await handleApiError(response);
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error('Error fetching subscription:', error);
+      throw error;
+    }
+  },
+};
+
+// Mercado Pago API
+export const mercadopagoApi = {
+  async createPaymentPreference(data: { title?: string; price?: number; options?: any }): Promise<{ preferenceId: string; init_point: string; sandbox_init_point: string }> {
+    try {
+      const response = await fetch(`${API_URL}${API_PREFIX}/billing/mp/create_preference`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        await handleApiError(response);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error creating MP payment preference:', error);
+      throw error;
+    }
+  },
+
+  async createSubscriptionPlan(planData: any): Promise<any> {
+    try {
+      const response = await fetch(`${API_URL}${API_PREFIX}/billing/mp/create_plan`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(planData),
+      });
+
+      if (!response.ok) {
+        await handleApiError(response);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error creating MP subscription plan:', error);
+      throw error;
+    }
+  },
+
+  async subscribeToPlan(planId: string, reason?: string): Promise<{ subscriptionId: string; init_point: string }> {
+    try {
+      const response = await fetch(`${API_URL}${API_PREFIX}/billing/mp/subscribe`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ planId, reason }),
+      });
+
+      if (!response.ok) {
+        await handleApiError(response);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error subscribing to plan:', error);
+      throw error;
+    }
+  },
+
+  async getSubscriptionStatus(id: string): Promise<any> {
+    try {
+      const response = await fetch(`${API_URL}${API_PREFIX}/billing/mp/subscription/${id}`, {
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        await handleApiError(response);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching subscription status:', error);
+      throw error;
+    }
+  },
+
+  async cancelSubscription(id: string): Promise<any> {
+    try {
+      const response = await fetch(`${API_URL}${API_PREFIX}/billing/mp/cancel/${id}`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        await handleApiError(response);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error canceling subscription:', error);
       throw error;
     }
   },

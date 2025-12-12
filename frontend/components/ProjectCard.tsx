@@ -4,9 +4,12 @@ import type { Project } from '@/types';
 
 interface ProjectCardProps {
   project: Project;
+  onViewDetails: (project: Project) => void;
+  onPreview?: (project: Project) => void;
+  onEdit: (project: Project) => void;
 }
 
-export function ProjectCard({ project }: ProjectCardProps) {
+export function ProjectCard({ project, onViewDetails, onPreview, onEdit }: ProjectCardProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active':
@@ -66,10 +69,26 @@ export function ProjectCard({ project }: ProjectCardProps) {
 
       <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
         <div className="flex justify-between">
-          <button className="text-sm font-medium text-primary hover:text-blue-700">
-            View Details
-          </button>
-          <button className="text-sm font-medium text-gray-500 hover:text-gray-700">
+          <div className="flex space-x-2">
+            <button 
+              onClick={() => onViewDetails(project)}
+              className="text-sm font-medium text-primary hover:text-blue-700"
+            >
+              View Details
+            </button>
+            {project.generatedHtml && onPreview && (
+              <button 
+                onClick={() => onPreview(project)}
+                className="text-sm font-medium text-green-600 hover:text-green-800"
+              >
+                Preview
+              </button>
+            )}
+          </div>
+          <button 
+            onClick={() => onEdit(project)}
+            className="text-sm font-medium text-gray-500 hover:text-gray-700"
+          >
             Edit
           </button>
         </div>

@@ -1,158 +1,164 @@
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const Stripe = require('stripe');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 class StripeService {
-  /**
-   * Create a new customer in Stripe
-   * @param {Object} userData - User information
-   * @returns {Promise<Object>} Stripe customer object
-   */
-  async createCustomer(userData) {
-    try {
-      const customer = await stripe.customers.create({
-        email: userData.email,
-        name: userData.name,
-        metadata: {
-          userId: userData.userId,
-          createdAt: new Date().toISOString()
-        }
-      });
-      return customer;
-    } catch (error) {
-      throw new Error(`Failed to create Stripe customer: ${error.message}`);
-    }
+  constructor() {
+    // Fail silently if key is missing during dev to prevent crash, but warn
+    this.stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
+    this.webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    this.baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+    if (!this.stripe) console.warn('⚠️ Stripe Secret Key missing. Billing will not work.');
   }
 
   /**
-   * Create a checkout session for subscription
-   * @param {string} customerId - Stripe customer ID
-   * @param {string} priceId - Stripe price ID
-   * @param {string} successUrl - URL to redirect on successful payment
-   * @param {string} cancelUrl - URL to redirect on cancelled payment
-   * @returns {Promise<Object>} Checkout session object
+   * Create or retrieve Stripe Customer for an Organization
    */
-  async createCheckoutSession(customerId, priceId, successUrl, cancelUrl) {
-    try {
-      const session = await stripe.checkout.sessions.create({
-        mode: 'subscription',
-        customer: customerId,
-        line_items: [{
-          price: priceId,
-          quantity: 1
-        }],
-        success_url: successUrl,
-        cancel_url: cancelUrl,
-        allow_promotion_codes: true,
-        subscription_data: {
-          metadata: {
-            createdAt: new Date().toISOString()
-          }
-        }
-      });
-      return session;
-    } catch (error) {
-      throw new Error(`Failed to create checkout session: ${error.message}`);
+  async getOrCreateCustomer(organizationId, email, name) {
+    if (!this.stripe) throw new Error('Stripe not configured');
+
+    const org = await prisma.organization.findUnique({
+      where: { id: organizationId }
+    });
+
+    if (org.stripeCustomerId) {
+      return org.stripeCustomerId;
     }
+
+    const customer = await this.stripe.customers.create({
+      email,
+      name,
+      metadata: {
+        organizationId
+      }
+    });
+
+    await prisma.organization.update({
+      where: { id: organizationId },
+      data: { stripeCustomerId: customer.id }
+    });
+
+    return customer.id;
   }
 
   /**
-   * Create a billing portal session
-   * @param {string} customerId - Stripe customer ID
-   * @param {string} returnUrl - URL to return to after portal session
-   * @returns {Promise<Object>} Billing portal session object
+   * Create Checkout Session for Subscription
    */
-  async createPortalSession(customerId, returnUrl) {
-    try {
-      const session = await stripe.billingPortal.sessions.create({
-        customer: customerId,
-        return_url: returnUrl
-      });
-      return session;
-    } catch (error) {
-      throw new Error(`Failed to create portal session: ${error.message}`);
-    }
+  async createCheckoutSession(organizationId, userId, priceId) {
+    // Default to env var if not provided
+    const finalPriceId = priceId || process.env.STRIPE_PRICE_ID;
+
+    if (!this.stripe) throw new Error('Stripe not configured');
+    if (!finalPriceId) throw new Error('Price ID not provided and not configured in env');
+
+    // Get user and org details
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const customerId = await this.getOrCreateCustomer(organizationId, user.email, `${user.firstName} ${user.lastName}`);
+
+    const session = await this.stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: 'subscription',
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price: finalPriceId,
+          quantity: 1,
+        },
+      ],
+      success_url: `${this.baseUrl}/dashboard?billing_success=true`,
+      cancel_url: `${this.baseUrl}/pricing?canceled=true`,
+      metadata: {
+        organizationId
+      }
+    });
+
+    return session.url;
   }
 
   /**
-   * Handle webhook events from Stripe
-   * @param {string} payload - Webhook payload
-   * @param {string} signature - Webhook signature
-   * @param {string} endpointSecret - Webhook endpoint secret
-   * @returns {Promise<Object>} Event object
+   * Create Customer Portal Session
    */
-  async handleWebhook(payload, signature, endpointSecret) {
-    try {
-      const event = stripe.webhooks.constructEvent(payload, signature, endpointSecret);
-      return event;
-    } catch (error) {
-      throw new Error(`Webhook error: ${error.message}`);
+  async createPortalSession(organizationId) {
+    if (!this.stripe) throw new Error('Stripe not configured');
+
+    const org = await prisma.organization.findUnique({
+      where: { id: organizationId }
+    });
+
+    if (!org.stripeCustomerId) {
+      throw new Error('No billing account found');
     }
+
+    const session = await this.stripe.billingPortal.sessions.create({
+      customer: org.stripeCustomerId,
+      return_url: `${this.baseUrl}/dashboard`,
+    });
+
+    return session.url;
   }
 
   /**
-   * Get subscription details
-   * @param {string} subscriptionId - Stripe subscription ID
-   * @returns {Promise<Object>} Subscription object
+   * Handle Webhook Logic
    */
-  async getSubscription(subscriptionId) {
+  async handleWebhook(signature, rawBody) {
+    if (!this.stripe) throw new Error('Stripe not configured');
+    let event;
+
     try {
-      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-      return subscription;
-    } catch (error) {
-      throw new Error(`Failed to retrieve subscription: ${error.message}`);
+      event = this.stripe.webhooks.constructEvent(
+        rawBody,
+        signature,
+        this.webhookSecret
+      );
+    } catch (err) {
+      console.error(`Webhook Error: ${err.message}`);
+      throw new Error(`Webhook Error: ${err.message}`);
     }
+
+    switch (event.type) {
+      case 'checkout.session.completed':
+        await this._handleCheckoutCompleted(event.data.object);
+        break;
+      case 'customer.subscription.updated':
+      case 'customer.subscription.deleted':
+        await this._handleSubscriptionUpdated(event.data.object);
+        break;
+      default:
+        console.log(`Unhandled event type ${event.type}`);
+    }
+
+    return { received: true };
   }
 
-  /**
-   * Cancel a subscription
-   * @param {string} subscriptionId - Stripe subscription ID
-   * @returns {Promise<Object>} Cancelled subscription object
-   */
-  async cancelSubscription(subscriptionId) {
-    try {
-      const subscription = await stripe.subscriptions.cancel(subscriptionId);
-      return subscription;
-    } catch (error) {
-      throw new Error(`Failed to cancel subscription: ${error.message}`);
-    }
+  // Internal handlers
+  async _handleCheckoutCompleted(session) {
+    const organizationId = session.metadata.organizationId;
+    const subscriptionId = session.subscription;
+
+    await prisma.organization.update({
+      where: { id: organizationId },
+      data: {
+        stripeSubscriptionId: subscriptionId,
+        subscriptionStatus: 'active',
+        subscriptionPlanId: 'pro'
+      }
+    });
   }
 
-  /**
-   * Get customer's subscriptions
-   * @param {string} customerId - Stripe customer ID
-   * @returns {Promise<Array>} Array of subscription objects
-   */
-  async getCustomerSubscriptions(customerId) {
-    try {
-      const subscriptions = await stripe.subscriptions.list({
-        customer: customerId,
-        status: 'all',
-        limit: 100
-      });
-      return subscriptions.data;
-    } catch (error) {
-      throw new Error(`Failed to retrieve customer subscriptions: ${error.message}`);
-    }
-  }
+  async _handleSubscriptionUpdated(subscription) {
+    // Retrieve organization by customer ID as metadata might not be in subscription update event
+    // In real app, might need to query by stripeSubscriptionId if we stored it
+    const customerId = subscription.customer;
+    const status = subscription.status;
 
-  /**
-   * Update subscription quantity
-   * @param {string} subscriptionId - Stripe subscription ID
-   * @param {number} quantity - New quantity
-   * @returns {Promise<Object>} Updated subscription object
-   */
-  async updateSubscriptionQuantity(subscriptionId, quantity) {
-    try {
-      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-      const updatedSubscription = await stripe.subscriptions.update(subscriptionId, {
-        items: [{
-          id: subscription.items.data[0].id,
-          quantity: quantity
-        }]
-      });
-      return updatedSubscription;
-    } catch (error) {
-      throw new Error(`Failed to update subscription quantity: ${error.message}`);
-    }
+    await prisma.organization.updateMany({
+      where: { stripeCustomerId: customerId },
+      data: {
+        subscriptionStatus: status,
+        stripeSubscriptionId: subscription.id
+      }
+    });
   }
 }
 

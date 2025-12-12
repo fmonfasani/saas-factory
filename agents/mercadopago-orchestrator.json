@@ -1,0 +1,106 @@
+{
+  "agentName": "mercadopago-orchestrator",
+  "version": "1.0.0",
+  "description": "Full-stack Mercado Pago payment orchestrator handling both recurring subscriptions and one-time payments with secure webhook endpoints",
+  "capabilities": [
+    "recurring_subscriptions",
+    "one_time_payments",
+    "webhook_handling",
+    "subscription_management",
+    "payment_status_tracking"
+  ],
+  "architecture": {
+    "backend": {
+      "language": "Node.js",
+      "framework": "Express",
+      "sdk": "mercadopago",
+      "database": "Prisma/PostgreSQL"
+    },
+    "frontend": {
+      "framework": "React/Next.js",
+      "components": [
+        "pricing_tables",
+        "subscription_buttons",
+        "payment_forms"
+      ]
+    }
+  },
+  "apiEndpoints": {
+    "create_subscription_plan": {
+      "method": "POST",
+      "path": "/api/billing/mp/create_plan",
+      "auth": "jwt",
+      "description": "Create a recurring subscription plan"
+    },
+    "subscribe_user": {
+      "method": "POST",
+      "path": "/api/billing/mp/subscribe",
+      "auth": "jwt",
+      "description": "Subscribe user to a plan"
+    },
+    "create_payment": {
+      "method": "POST",
+      "path": "/api/billing/mp/create_payment",
+      "auth": "jwt",
+      "description": "Create a one-time payment"
+    },
+    "webhook": {
+      "method": "POST",
+      "path": "/api/billing/mp/webhook",
+      "auth": "none",
+      "description": "Handle Mercado Pago webhook notifications"
+    },
+    "get_subscription_status": {
+      "method": "GET",
+      "path": "/api/billing/mp/subscription/:id",
+      "auth": "jwt",
+      "description": "Get subscription status"
+    }
+  },
+  "databaseModels": {
+    "Subscription": {
+      "fields": [
+        "id",
+        "organizationId",
+        "planType",
+        "status",
+        "startDate",
+        "endDate",
+        "cancelAtPeriodEnd",
+        "mpPreapprovalId",
+        "mpPlanId"
+      ],
+      "relations": [
+        "organization"
+      ]
+    },
+    "Payment": {
+      "fields": [
+        "id",
+        "organizationId",
+        "amount",
+        "currency",
+        "status",
+        "mpPaymentId",
+        "description"
+      ],
+      "relations": [
+        "organization"
+      ]
+    }
+  },
+  "security": {
+    "credentialHandling": "Environment variables only",
+    "webhookValidation": "Signature verification",
+    "dataEncryption": "TLS for all communications"
+  },
+  "implementationSteps": [
+    "Implement Mercado Pago service with SDK initialization",
+    "Create subscription plan and preapproval APIs",
+    "Develop secure webhook handler with signature verification",
+    "Build database models for subscription tracking",
+    "Create frontend components for pricing display",
+    "Implement subscription management UI",
+    "Add debugging and logging for transactions"
+  ]
+}

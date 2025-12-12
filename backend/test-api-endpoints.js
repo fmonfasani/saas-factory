@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 // Base URL for the API
-const BASE_URL = 'http://localhost:3000/api';
+const BASE_URL = 'http://localhost:5000/api';
 
 // Test user credentials (you'll need to create a test user first)
 const TEST_USER = {
@@ -16,8 +16,8 @@ let testProjectId = '';
 async function loginTestUser() {
   try {
     console.log('Logging in test user...');
-    const response = await axios.post(`${BASE_URL}/auth/login`, TEST_USER);
-    authToken = response.data.token;
+    const response = await axios.post(`${BASE_URL}/auth/signin`, TEST_USER);
+    authToken = response.data.accessToken;
     console.log('✅ Login successful');
     return true;
   } catch (error) {

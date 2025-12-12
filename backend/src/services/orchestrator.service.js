@@ -37,13 +37,47 @@ class OrchestratorService {
     try {
       // Generate structured data from prompt using LLM
       const saasData = await llmService.generateLandingPageContent(prompt);
-      
+
+      // Also generate database schema in parallel or sequential
+      let schema = null;
+      try {
+        console.log('Generating schema for prompt:', prompt);
+        schema = await llmService.generateDatabaseSchema(prompt);
+      } catch (schemaError) {
+        console.error('Schema generation failed (non-fatal):', schemaError);
+        // We continue even if schema fails, user can try again
+      }
+
       return {
         success: true,
-        data: saasData
+        data: {
+          ...saasData,
+          generatedSchema: schema // Include schema in response
+        }
       };
     } catch (error) {
       console.error('Error analyzing prompt:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Generate database schema from prompt
+   * @param {string} prompt - User's SaaS idea description
+   * @returns {Promise<Object>} Generated Prisma schema
+   */
+  async generateDatabaseSchema(prompt) {
+    try {
+      const schema = await llmService.generateDatabaseSchema(prompt);
+      return {
+        success: true,
+        schema: schema
+      };
+    } catch (error) {
+      console.error('Error generating schema:', error);
       return {
         success: false,
         error: error.message
@@ -61,15 +95,15 @@ class OrchestratorService {
     try {
       // Track generation time
       const startTime = Date.now();
-      
+
       // Generate HTML using the specified variant or let it be assigned randomly
       const result = this.generateHTMLFromTemplate(saasData, variant);
-      
+
       const generationTime = Date.now() - startTime;
-      
+
       // Record generation metrics
       abTestingService.recordGeneration(result.variant, generationTime);
-      
+
       return {
         success: true,
         html: result.html,
@@ -93,7 +127,7 @@ class OrchestratorService {
    */
   createJob(prompt) {
     const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+
     const job = {
       id: jobId,
       prompt,
@@ -102,7 +136,7 @@ class OrchestratorService {
       events: [],
       clients: []
     };
-    
+
     jobs.set(jobId, job);
     return jobId;
   }
@@ -146,12 +180,12 @@ class OrchestratorService {
         clients: []
       });
     }
-    
+
     const job = jobs.get(jobId);
     if (job && !job.clients) {
       job.clients = [];
     }
-    
+
     job.clients.push(client);
   }
 
@@ -179,16 +213,16 @@ class OrchestratorService {
   generateHTMLFromTemplate(data, variant = null) {
     // If no variant specified, assign one randomly for A/B testing
     const usedVariant = variant || abTestingService.assignVariant();
-    
+
     // Record preview view for this variant
     abTestingService.recordPreviewView(usedVariant);
-    
+
     // Get the appropriate template function
     const templateFn = abTestingService.getTemplate(usedVariant);
-    
+
     // Generate HTML using the selected template
     const html = templateFn(data);
-    
+
     return {
       html: html,
       variant: usedVariant
